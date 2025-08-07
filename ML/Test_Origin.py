@@ -6,7 +6,7 @@ import time
 
 model = YOLO("C:/Users/KATANA/OneDrive/Documents/Magang BRIN/B_best.pt")
 
-with open("C:/Users/KATANA/OneDrive/Documents/Magang BRIN/A_Mobil_Pos/mobil_pos.pkl", 'rb') as f:
+with open("D:/Digital twin BRIN RI/Digital-Twin-Brin-Parking/A_Mobil_Positions/mobil_positions.pkl", 'rb') as f:
     posList = pickle.load(f)
 
 yolo_box_width, yolo_box_height = 30, 40

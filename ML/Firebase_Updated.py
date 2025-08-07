@@ -6,19 +6,18 @@ import time
 import firebase_admin
 from firebase_admin import credentials, db
 
-cred = credentials.Certificate("C:/Users/KATANA/OneDrive/Documents/Magang BRIN/digitaltwinparkingbrin-firebase-adminsdk-fbsvc-5df2089605.json")
+cred = credentials.Certificate("C:/Users/KATANA/OneDrive/Documents/Magang BRIN/digitaltwinparkingbrin-firebase-adminsdk-fbsvc-f810a475d7.json")
 firebase_admin.initialize_app(cred, {
     'databaseURL': 'https://digitaltwinparkingbrin-default-rtdb.asia-southeast1.firebasedatabase.app/'
 })
 
 model = YOLO("D:/Digital twin BRIN RI/Digital-Twin-Brin-Parking/ML/B_best.pt")
-
-with open("D:/Digital twin BRIN RI/Digital-Twin-Brin-Parking/A_Mobil_Position/mobil_position.pkl", 'rb') as f:
+with open("D:/Digital twin BRIN RI/Digital-Twin-Brin-Parking/A_Mobil_Positioning/mobil_positioning.pkl", 'rb') as f:
 # with open("D:/Digital twin BRIN RI/Digital-Twin-Brin-Parking/A_Mobil_Positioning_Advanced/mobil_positioning_parallelogram.pkl", 'rb') as f:
     posList = pickle.load(f)
 
-yolo_box_width, yolo_box_height = 20, 30
-opencv_box_width, opencv_box_height = 20, 30
+yolo_box_width, yolo_box_height = 30, 40
+opencv_box_width, opencv_box_height = 30, 40
 
 cap = cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)  
@@ -26,7 +25,7 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 cv2.namedWindow("Parking Detection", cv2.WINDOW_NORMAL)
 cv2.resizeWindow("Parking Detection", 1280, 720)
 
-def adjust_brightness(img, value=30):
+def adjust_brightness(img, value=-30):
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     h, s, v = cv2.split(hsv)
     v = cv2.add(v, value)
@@ -40,7 +39,7 @@ update_interval = 8
 
 def checkParkingSpaceYOLO(img, posList, model, update_firebase=False):
     spaceCounter = 0
-    results = model(img, conf=0.2)
+    results = model(img, conf=0.1)
     car_boxes = []
     status_dict = {}
 
@@ -58,7 +57,7 @@ def checkParkingSpaceYOLO(img, posList, model, update_firebase=False):
             class_id = int(box.cls[0].item())
             class_name = model.names[class_id]
 
-            if confidence > 0.2 and 'car' in class_name.lower():
+            if confidence > 0.1 and 'car' in class_name.lower():
                 car_boxes.append([x1_new, y1_new, x2_new, y2_new])
                 cv2.rectangle(img, (x1_new, y1_new), (x2_new, y2_new), (255, 0, 0), 2)
                 cv2.putText(img, class_name, (x1_new, y1_new - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
@@ -81,8 +80,9 @@ def checkParkingSpaceYOLO(img, posList, model, update_firebase=False):
         cvzone.putTextRect(img, str(id), (x + 5, y + 15), scale=0.5, thickness=1, offset=0, colorR=color)
 
     if update_firebase:
+        ref = db.reference('slot_parking')
         for key, val in status_dict.items():
-            db.reference(key).set(val)
+            ref.child(key).set(val)
 
     cvzone.putTextRect(img, f'Free: {spaceCounter}/{len(posList)}', (50, 50), scale=2.5, thickness=4, offset=10, colorR=(0, 200, 0))
     return img
@@ -93,7 +93,7 @@ while True:
         print("Gagal membaca frame dari kamera/video.")
         break
 
-    img = adjust_brightness(img, value=-40)
+    img = adjust_brightness(img, value=-30)
 
     current_time = time.time()
     should_update_firebase = (current_time - last_update_time) >= update_interval

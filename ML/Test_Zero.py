@@ -1,34 +1,36 @@
+# from ultralytics import YOLO
+# # from ultralytics.yolo.v8.detect.predict import DetectionPredictor
+# import cv2
+
+# model = YOLO("D:/Digital twin BRIN RI/Digital-Twin-Brin-Parking/ML/B_best.pt")
+# model.predict(source="0", show=True, conf=0.5)  # accepts all formats - images, video, webcam
+
+
 from ultralytics import YOLO
 import cv2
 import pickle
 import cvzone
 import time
 
+# Load custom YOLOv8 model
 model = YOLO("C:/Users/KATANA/OneDrive/Documents/Magang BRIN/B_best.pt")
 
-with open("C:/Users/KATANA/OneDrive/Documents/Magang BRIN/A_Mobil_Pos/mobil_pos.pkl", 'rb') as f:
+# Load list of predefined parking slot positions
+with open("D:/Digital twin BRIN RI/Digital-Twin-Brin-Parking/A_Mobil_Positions/mobil_positions.pkl", 'rb') as f:
     posList = pickle.load(f)
 
+# Konfigurasi ukuran bounding box untuk deteksi YOLO dan kotak parkir
 yolo_box_width, yolo_box_height = 30, 40
 opencv_box_width, opencv_box_height = 30, 40
 
+# Inisialisasi kamera (webcam)
 cap = cv2.VideoCapture(0)  
-
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
+# Setup jendela tampilan
 cv2.namedWindow("Parking Detection", cv2.WINDOW_NORMAL)
 cv2.resizeWindow("Parking Detection", 1280, 720)
-
-def adjust_brightness(img, value=30):
-    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    h, s, v = cv2.split(hsv)
-    v = cv2.add(v, value)
-    v[v > 255] = 255
-    v[v < 0] = 0
-    final_hsv = cv2.merge((h, s, v))
-    img_bright = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
-    return img_bright
 
 def checkParkingSpaceYOLO(img, posList, model):
     spaceCounter = 0
@@ -36,6 +38,13 @@ def checkParkingSpaceYOLO(img, posList, model):
     car_boxes = []
 
     for result in results:
+        # Dapatkan mask jika model adalah segmentation
+        if result.masks is not None:
+            for mask in result.masks.data:
+                mask = mask.cpu().numpy().astype("uint8") * 255
+                contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                cv2.drawContours(img, contours, -1, (255, 255, 0), 2)
+
         for box in result.boxes:
             x1, y1, x2, y2 = box.xyxy[0].cpu().numpy().astype(int)
             x_center = (x1 + x2) // 2
@@ -54,6 +63,7 @@ def checkParkingSpaceYOLO(img, posList, model):
                 cv2.rectangle(img, (x1_new, y1_new), (x2_new, y2_new), (255, 0, 0), 2)
                 cv2.putText(img, class_name, (x1_new, y1_new - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
 
+    # Cek status setiap kotak parkir
     for id, x, y in posList:
         status = False
         for (cx1, cy1, cx2, cy2) in car_boxes:
@@ -72,19 +82,22 @@ def checkParkingSpaceYOLO(img, posList, model):
     cvzone.putTextRect(img, f'Free: {spaceCounter}/{len(posList)}', (50, 50), scale=2.5, thickness=4, offset=10, colorR=(0, 200, 0))
     return img
 
+
+# Loop utama
 while True:
     success, img = cap.read()
     if not success:
         print("Gagal membaca frame dari kamera/video.")
         break
 
-    img = adjust_brightness(img, value=-20) 
-
+    # Proses deteksi parkir
     imgResult = checkParkingSpaceYOLO(img, posList, model)
     cv2.imshow("Parking Detection", imgResult)
 
+    # Tekan 'Esc' untuk keluar
     if cv2.waitKey(1) & 0xFF == 27:  
         break
 
+# Bersihkan resource
 cap.release()
 cv2.destroyAllWindows()

@@ -2,13 +2,13 @@ import cv2
 import pickle
 import os
 
-width, height = 25, 30
+width, height = 30, 35
 
-save_folder = 'A_Mobil_Pos'
+save_folder = 'A_Mobil_Positions'
 os.makedirs(save_folder, exist_ok=True)
 
-save_path = os.path.join(save_folder, 'mobil_pos.pkl')
-image_save_path = os.path.join(save_folder, 'layout_parking_space.png')
+save_path = os.path.join(save_folder, 'mobil_positions.pkl')
+image_save_path = os.path.join(save_folder, 'layout_parking_spaces.png')
 
 try:
     with open(save_path, 'rb') as f:
@@ -38,7 +38,7 @@ cv2.resizeWindow("Setup Slot Parkir", 1280, 720)
 while True:
     success, img = cap.read()
     if not success:
-        print("❌ Gagal membuka kamera.")
+        print("Gagal membuka kamera.")
         break
 
     for id, x, y in posList:
